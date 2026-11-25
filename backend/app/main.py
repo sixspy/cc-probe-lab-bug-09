@@ -2,6 +2,7 @@ from pathlib import Path
 from quart import Quart, jsonify, request, send_from_directory, redirect
 from app import seed
 from app.services import 目录, 装载, 结栏, 贯验, 夹具, 统计, 说明
+from app.services import 栏号解析
 from app.services import homonym as homonym_svc
 from app.services import homonym_cutover as homonym_cut_svc
 from app.services import homonym_dualwrite as homonym_dual_svc
@@ -85,7 +86,10 @@ async def api_夹具():
 @app.post("/api/观测报文/装载")
 async def api_装载():
     body = await request.get_json(force=True, silent=True) or {}
-    return jsonify(装载.装一批(body))
+    try:
+        return jsonify(装载.装一批(body, 解析指纹=body.get("解析指纹")))
+    except (KeyError, ValueError, RuntimeError) as e:
+        return jsonify({"错误": str(e), "拒绝": True}), 400
 
 
 @app.post("/api/观测报文/夹具/<name>")
@@ -222,3 +226,77 @@ async def api_homonym_dual_post():
 @app.get("/api/homonym/审计")
 async def api_homonym_audit():
     return jsonify(homonym_audit_svc.audit_summary())
+
+
+@app.get("/api/栏号解析/真源卡")
+async def api_解析真源卡():
+    return jsonify(目录.解析真源卡())
+
+
+@app.get("/api/栏号解析/齐套对账")
+async def api_齐套对账():
+    return jsonify(栏号解析.齐套对账())
+
+
+@app.get("/api/栏号解析/映射")
+async def api_站点栏映射():
+    return jsonify(栏号解析.站点栏映射())
+
+
+@app.get("/api/栏号解析/包")
+async def api_历史包():
+    return jsonify(栏号解析.历史包列表())
+
+
+@app.get("/api/栏号解析/模糊归档")
+async def api_模糊归档():
+    return jsonify(栏号解析.模糊归档列表())
+
+
+@app.post("/api/栏号解析/封包")
+async def api_封包():
+    body = await request.get_json(force=True, silent=True) or {}
+    return jsonify(栏号解析.封包(str(body.get("备注") or "")))
+
+
+@app.post("/api/栏号解析/绑定")
+async def api_绑定():
+    body = await request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(栏号解析.绑定站点栏(str(body["站点键"]), str(body["栏号"])))
+    except KeyError as e:
+        return jsonify({"错误": str(e)}), 400
+
+
+@app.post("/api/栏号解析/改名")
+async def api_改名():
+    body = await request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(栏号解析.改站名(str(body["源键"]), str(body["新名称"])))
+    except KeyError as e:
+        return jsonify({"错误": str(e)}), 400
+
+
+@app.post("/api/栏号解析/切流")
+async def api_解析切流():
+    return jsonify(栏号解析.切流())
+
+
+@app.post("/api/栏号解析/模糊归档")
+async def api_记模糊():
+    body = await request.get_json(force=True, silent=True) or {}
+    return jsonify(栏号解析.记模糊归档(
+        str(body.get("站名") or ""),
+        list(body.get("候选栏") or []),
+        str(body.get("模糊落点") or "只读归档"),
+    ))
+
+
+@app.post("/api/栏号解析/模糊回刷")
+async def api_模糊回刷():
+    body = await request.get_json(force=True, silent=True) or {}
+    try:
+        栏号解析.按站名模糊回刷(body)
+    except ValueError as e:
+        return jsonify({"错误": str(e), "拒绝": True}), 400
+    return jsonify({"错误": "不应到达"}), 500

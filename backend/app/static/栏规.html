@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>栏规 · 探栏</title>
   <link rel="stylesheet" href="/styles.css"/>
-  <script src="/common.js">
+  <script src="/common.js"></script>
+  <script>
     async function 刷栏规页() {
       const 规 = await 探栏.getJSON("/api/栏规");
       const box = document.getElementById("栏规表") || document.getElementById("表");
@@ -51,9 +52,10 @@
       <div class="骨">传感报文装载 → 标定/质控门槛入栏 → 站点汇总物化 → 坏点旁路 → 栏账互证<br/>皮：环境监测传感站 · 不是潮切关窗，也不是对拍双轨</div>
     </header>
     <div class="门槛条" id="门槛条"></div>
+    <div class="门槛条" id="解析真源条"></div>
     <header class="顶牌" style="margin-bottom:10px">
       <h1 style="font-size:22px">栏规</h1>
-      <div class="骨">当前栏号与质控阈值。</div>
+      <div class="骨">当前栏号与质控阈值。栏号解析真源见上方卡：站键精确物化包，拒站名模糊回刷。</div>
     </header>
 
     <section class="卷"><h2>栏规原文</h2><pre class="回执" id="规">加载中…</pre><div class="工具 上距12">
@@ -66,11 +68,53 @@
       <h2>夹具预检</h2>
       <div class="表绕"><table><thead><tr><th>夹具</th><th>报文数</th><th>可装</th><th>摘要</th></tr></thead><tbody id="夹具预检表"></tbody></table></div>
     </section>
+    <section class="卷">
+      <h2>栏号解析真源（站键精确物化包）</h2>
+      <div class="工具 上距12">
+        <button class="按钮 青" id="切流">切读轨到物化包</button>
+        <button class="按钮 次" id="封包">封新版包</button>
+        <button class="按钮 次" id="刷真源">刷新真源</button>
+      </div>
+      <pre class="回执 上距12" id="真源回执">切流后锁指纹、拒模糊回刷；模糊命中只进只读归档。</pre>
+      <div class="表绕 上距12"><table><thead><tr><th>版本</th><th>站点键</th><th>站点名称</th><th>栏号</th></tr></thead><tbody id="映射表"></tbody></table></div>
+      <h3 class="上距12">齐套对账（精确只认物化包）</h3>
+      <pre class="回执" id="对账回执">加载中…</pre>
+      <h3 class="上距12">模糊归档（只读，不算精确齐套）</h3>
+      <div class="表绕"><table><thead><tr><th>编号</th><th>时刻</th><th>站名</th><th>候选栏</th><th>模糊落点</th></tr></thead><tbody id="模糊表"></tbody></table></div>
+    </section>
     <section class="卷"><h2>空桩目录</h2><p class="说明" id="空桩"></p>
       <div class="双栏"><p class="说明">栏规钉死当前栏与 PM25 上下限。分指标门槛属于空桩。</p>
       <div class="侧注">版式：底栏铜青。潮切是左侧窗时间轴浅纸底。</div></div>
     </section>
     <script>
+    async function 刷真源全部() {
+      await 探栏.渲染解析真源(document.getElementById("解析真源条"));
+      const 映射 = await 探栏.getJSON("/api/栏号解析/映射");
+      const tb = document.getElementById("映射表");
+      tb.innerHTML = 映射.map((r) => 探栏.行(
+        `<td>v${r.版本}</td><td>${探栏.安全文本(r.站点键)}</td><td>${探栏.安全文本(r.站点名称)}</td><td>${探栏.安全文本(r.栏号)}</td>`
+      )).map((tr) => tr.outerHTML).join("") || 探栏.空态("尚无映射");
+      const 对账 = await 探栏.getJSON("/api/栏号解析/齐套对账");
+      document.getElementById("对账回执").textContent = JSON.stringify({
+        解析真源: 对账.解析真源, 齐套: 对账.齐套, 精确命中: 对账.精确命中,
+        模糊命中: 对账.模糊命中, 未解析: 对账.未解析, 串栏: 对账.串栏,
+        读轨: 对账.读轨, 拒模糊回刷: 对账.拒模糊回刷, 锁定指纹: 对账.锁定指纹,
+      }, null, 2);
+      const 模糊 = await 探栏.getJSON("/api/栏号解析/模糊归档");
+      document.getElementById("模糊表").innerHTML = 模糊.map((r) => 探栏.行(
+        `<td>${r.编号}</td><td>${探栏.安全文本(r.时刻)}</td><td>${探栏.安全文本(r.站名)}</td><td>${探栏.安全文本(r.候选栏)}</td><td>${探栏.安全文本(r.模糊落点)}</td>`
+      )).map((tr) => tr.outerHTML).join("") || `<tr><td colspan="5">${探栏.空态("无模糊归档")}</td></tr>`;
+    }
+    document.getElementById("切流").onclick = async () => {
+      document.getElementById("真源回执").textContent = JSON.stringify(await 探栏.postJSON("/api/栏号解析/切流"), null, 2);
+      await 刷真源全部();
+    };
+    document.getElementById("封包").onclick = async () => {
+      document.getElementById("真源回执").textContent = JSON.stringify(await 探栏.postJSON("/api/栏号解析/封包", {}), null, 2);
+      await 刷真源全部();
+    };
+    document.getElementById("刷真源").onclick = 刷真源全部;
+    刷真源全部();
     (async () => {
       document.getElementById("规").textContent = JSON.stringify(await 探栏.getJSON("/api/栏规"), null, 2);
       const s = await 探栏.getJSON("/api/空桩");

@@ -42,6 +42,9 @@ a { color: var(--teal); text-decoration: none; }
   gap: 10px;
   margin: 14px 0 18px;
 }
+#解析真源条 {
+  grid-template-columns: repeat(6, 1fr);
+}
 .门槛卡 {
   border: 1px solid var(--line);
   border-radius: 12px;

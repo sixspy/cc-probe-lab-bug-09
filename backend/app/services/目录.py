@@ -1,6 +1,6 @@
 """列表与栏规。"""
 from __future__ import annotations
-from app.db import 连接
+from app.db import 连接, 写事务
 from app.services import 校验
 
 
@@ -18,12 +18,12 @@ def 改栏规(体: dict) -> dict:
         return {"错误": 校验.摘要错误(错), "栏规": 栏规()}
     conn = 连接()
     try:
-        for k, v in (体 or {}).items():
-            conn.execute(
-                "INSERT INTO 栏规(键,值) VALUES (?,?) ON CONFLICT(键) DO UPDATE SET 值=excluded.值",
-                (str(k), str(v)),
-            )
-        conn.commit()
+        with 写事务(conn):
+            for k, v in (体 or {}).items():
+                conn.execute(
+                    "INSERT INTO 栏规(键,值) VALUES (?,?) ON CONFLICT(键) DO UPDATE SET 值=excluded.值",
+                    (str(k), str(v)),
+                )
         return 栏规()
     finally:
         conn.close()
@@ -170,14 +170,25 @@ def 站点查(源键: str) -> dict | None:
 
 
 def homonym_齐套灯() -> dict:
-    """展示齐套：只读面板芯片，不核真实对齐。"""
-    from app.services import homonym as _m
-    snap = _m.dashboard()
+    """齐套只认站键精确物化包对账实值，面板芯片再绿也不折算。"""
+    from app.services import 栏号解析
+    对账 = 栏号解析.齐套对账()
     return {
-        "标题": snap.get("title"),
-        "芯片": snap.get("panel_chip"),
-        "真相": snap.get("truth"),
-        "齐套": snap.get("panel_chip") == snap.get("ok_chip"),
-        "对齐实值": snap.get("aligned"),
-        "panel_pack_mismatch": snap.get("panel_pack_mismatch", True),
+        "标题": 对账.get("标题"),
+        "芯片": 对账.get("解析真源"),
+        "真相": "解析已亮" if 对账.get("齐套") else "重名串栏",
+        "齐套": 对账.get("齐套"),
+        "对齐实值": 对账.get("齐套"),
+        "panel_pack_mismatch": not 对账.get("齐套"),
+        "精确命中": 对账.get("精确命中"),
+        "模糊命中": 对账.get("模糊命中"),
+        "未解析": 对账.get("未解析"),
+        "串栏": 对账.get("串栏"),
+        "读轨": 对账.get("读轨"),
     }
+
+
+def 解析真源卡() -> dict:
+    """栏规列表/报文流/入栏缓冲/站点汇总账四页共用的解析真源。"""
+    from app.services import 栏号解析
+    return 栏号解析.真源卡()

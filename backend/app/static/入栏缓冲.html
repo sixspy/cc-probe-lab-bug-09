@@ -14,23 +14,25 @@
       <div class="骨">传感报文装载 → 标定/质控门槛入栏 → 站点汇总物化 → 坏点旁路 → 栏账互证<br/>皮：环境监测传感站 · 不是潮切关窗，也不是对拍双轨</div>
     </header>
     <div class="门槛条" id="门槛条"></div>
+    <div class="门槛条" id="解析真源条"></div>
     <header class="顶牌" style="margin-bottom:10px">
       <h1 style="font-size:22px">入栏缓冲</h1>
-      <div class="骨">过门槛、尚未结栏汇总的在途集合。</div>
+      <div class="骨">过门槛、尚未结栏汇总的在途集合。栏号为站键精确解析产物，卡片即写读同一真源。</div>
     </header>
 
     <section class="卷">
-      <div class="表绕"><table><thead><tr><th>报文编号</th><th>站点</th><th>指标</th><th>读数</th><th>栏号</th><th>命运</th></tr></thead><tbody id="表"></tbody></table></div>
+      <div class="表绕"><table><thead><tr><th>报文编号</th><th>站点</th><th>指标</th><th>读数</th><th>栏号</th><th>命运</th><th>解析指纹</th></tr></thead><tbody id="表"></tbody></table></div>
     </section>
     <script>
     (async () => {
       const rows = await 探栏.getJSON("/api/入栏缓冲");
       const tb = document.getElementById("表");
-      if (!rows.length) { tb.innerHTML = `<tr><td colspan="6">${探栏.空态("缓冲为空。")}</td></tr>`; return; }
+      if (!rows.length) { tb.innerHTML = `<tr><td colspan="7">${探栏.空态("缓冲为空。")}</td></tr>`; return; }
       for (const r of rows) {
-        tb.appendChild(探栏.行(`<td>${探栏.安全文本(r.报文编号)}</td><td>${探栏.安全文本(r.站点键)}</td><td>${探栏.安全文本(r.指标键)}</td><td>${r.读数}</td><td>${探栏.安全文本(r.栏号)}</td><td>${探栏.徽章(r.命运)}</td>`));
+        tb.appendChild(探栏.行(`<td>${探栏.安全文本(r.报文编号)}</td><td>${探栏.安全文本(r.站点键)}</td><td>${探栏.安全文本(r.指标键)}</td><td>${r.读数}</td><td>${探栏.安全文本(r.栏号)}</td><td>${探栏.徽章(r.命运)}</td><td><code>${探栏.安全文本(r.解析指纹||"—")}</code></td>`));
       }
     })();
+    探栏.渲染解析真源(document.getElementById("解析真源条"));
     </script>
 
   </div>

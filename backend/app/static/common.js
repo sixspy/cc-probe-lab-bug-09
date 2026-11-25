@@ -86,8 +86,26 @@ function 填命运字典(el, dict) {
     `<div class="只读框 上距8"><b class="铜字">${安全文本(k)}</b> · ${安全文本(v)}</div>`
   ).join("");
 }
+async function 渲染解析真源(el) {
+  if (!el) return;
+  try {
+    const c = await getJSON("/api/栏号解析/真源卡");
+    const 灯 = c["齐套"] ? `<span class="徽章 好">齐套</span>` : `<span class="徽章 危">未齐套</span>`;
+    const 拒刷 = c["拒模糊回刷"] ? `<span class="徽章 好">拒模糊回刷</span>` : `<span class="徽章 警">未锁</span>`;
+    el.innerHTML = `
+      <div class="门槛卡"><div class="k">解析真源</div><div class="v">${安全文本(c["解析真源"] || "—")}</div></div>
+      <div class="门槛卡"><div class="k">物化包版本</div><div class="v">v${c["版本"] ?? "—"}</div></div>
+      <div class="门槛卡"><div class="k">解析指纹</div><div class="v" style="font-size:13px">${安全文本(c["指纹"] || "—")}</div></div>
+      <div class="门槛卡"><div class="k">读轨 / 映射</div><div class="v" style="font-size:13px">${安全文本(c["读轨"] || "—")} · ${c["映射条数"] ?? 0} 站</div></div>
+      <div class="门槛卡"><div class="k">齐套状态</div><div class="v">${灯} ${拒刷}</div></div>
+      <div class="门槛卡"><div class="k">模糊归档（只读）</div><div class="v">${c["模糊归档数"] ?? 0} 条</div></div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="门槛卡"><div class="k">解析真源</div><div class="v">取卡失败</div></div>`;
+  }
+}
 window.探栏 = {
   getJSON, postJSON, 行, 徽章, 空态, 安全文本, 命运色,
-  渲染水位, 渲染门槛, 渲染批次表,
+  渲染水位, 渲染门槛, 渲染批次表, 渲染解析真源,
   装载摘要文, 结栏摘要文, 贯验摘要文, 填命运字典,
 };

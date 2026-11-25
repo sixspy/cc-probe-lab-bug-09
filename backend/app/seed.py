@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS 观测报文 (
   观测时 TEXT NOT NULL,
   处理时 TEXT NOT NULL,
   命运 TEXT NOT NULL DEFAULT '已装载',
-  批次编号 TEXT NOT NULL DEFAULT ''
+  批次编号 TEXT NOT NULL DEFAULT '',
+  解析指纹 TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS 入栏缓冲 (
   报文编号 TEXT PRIMARY KEY,
@@ -31,7 +32,8 @@ CREATE TABLE IF NOT EXISTS 入栏缓冲 (
   观测时 TEXT NOT NULL,
   栏号 TEXT NOT NULL,
   命运 TEXT NOT NULL DEFAULT '在栏',
-  入栏时 TEXT NOT NULL
+  入栏时 TEXT NOT NULL,
+  解析指纹 TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS 站点汇总账 (
   汇总编号 TEXT PRIMARY KEY,
@@ -41,7 +43,8 @@ CREATE TABLE IF NOT EXISTS 站点汇总账 (
   报文数 INTEGER NOT NULL,
   均值 REAL NOT NULL,
   物化时 TEXT NOT NULL,
-  命运 TEXT NOT NULL DEFAULT '已汇总'
+  命运 TEXT NOT NULL DEFAULT '已汇总',
+  解析指纹 TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS 坏点匣 (
   编号 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,6 +112,8 @@ def 初始化库() -> None:
             ("站-北岭", "北岭大气站", "大气", "近郊", "示范站"),
             ("站-江口", "江口大气站", "大气", "河口", "示范站"),
             ("站-林场", "林场微站", "大气", "林区", "示范站"),
+            ("站-同名甲", "重名监测站", "大气", "城区", "重名站甲"),
+            ("站-同名乙", "重名监测站", "大气", "近郊", "重名站乙"),
         ]:
             conn.execute(
                 "INSERT INTO 站点源(源键,名称,介质,区域,说明) VALUES (?,?,?,?,?)",
@@ -116,6 +121,36 @@ def 初始化库() -> None:
             )
     conn.commit()
     conn.close()
+    _迁移加解析指纹()
+    _封首版解析包()
+
+
+def _迁移加解析指纹() -> None:
+    """老库补列：CREATE TABLE IF NOT EXISTS 不会改既有表结构。"""
+    conn = 连接()
+    try:
+        既有 = {r["name"] for r in conn.execute("PRAGMA table_info(观测报文)").fetchall()}
+        for 表 in ("观测报文", "入栏缓冲", "站点汇总账"):
+            列 = {r["name"] for r in conn.execute(f"PRAGMA table_info({表})").fetchall()}
+            if "解析指纹" not in 列:
+                conn.execute(f"ALTER TABLE {表} ADD COLUMN 解析指纹 TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _封首版解析包() -> None:
+    from app.services import 栏号解析
+    conn = 连接()
+    try:
+        栏号解析._ensure(conn)
+        if 栏号解析.当前版本(conn) == 0:
+            conn.commit()
+    finally:
+        conn.close()
+    # 封包自开连接，避免事务嵌套
+    if 栏号解析.当前版本() == 0:
+        栏号解析.封包(备注="首版站键精确包")
 
 
 

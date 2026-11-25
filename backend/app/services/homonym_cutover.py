@@ -1,27 +1,15 @@
-"""栏号解析切流账册空壳：应锁指纹拒回刷；当前只记软笔记。"""
+"""栏号解析切流账册：真切到物化包，锁指纹、拒站名模糊回刷。"""
 from __future__ import annotations
 
-from app.db import 连接
 from app.services import homonym as core
-
-_SLUG = "homonym"
-_TITLE = "栏号解析"
-_OK = "解析已亮"
+from app.services import 栏号解析
 
 
 def append_cutover(ref_id: int, note: str = "") -> dict:
-    conn = 连接()
-    try:
-        core._ensure(conn)
-        core._set(conn, f"{_SLUG}_cutover_note_{ref_id}", note or _TITLE)
-        core._set(conn, f"{_SLUG}_panel_chip", _OK)
-        # missing durable fp + reject_refresh + active_read rewrite
-        conn.commit()
-    finally:
-        conn.close()
+    切 = 栏号解析.切流()
     return {
         "ref_id": ref_id,
-        "note": note,
+        "note": note or 切.get("读轨", ""),
         "panel": core.panel_chip(),
         "truth": core.truth_flag(),
         "active_read": core.active_read_ref(),
@@ -33,5 +21,5 @@ def append_cutover(ref_id: int, note: str = "") -> dict:
 def board() -> dict:
     dash = core.dashboard()
     dash["fate"] = "cutover_book"
-    dash["panel_pack_mismatch"] = True
+    dash["panel_pack_mismatch"] = not dash.get("aligned")
     return dash
